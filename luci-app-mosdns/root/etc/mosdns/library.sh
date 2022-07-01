@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 bakdns() {
 	if [ "$1" == "0" ]; then
 		echo "119.29.29.29"
@@ -15,7 +15,7 @@ getdat() {
   if exist curl; then
     curl -fSLo "$TMPDIR/$1" "https://gh.404delivr.workers.dev/https://github.com/QiuSimons/openwrt-mos/raw/master/dat/$1"
   else
-    wget "https://gh.404delivr.workers.dev/https://github.com/QiuSimons/openwrt-mos/raw/master/dat/$1" -nv -O "$TMPDIR/$1"
+    wget "https://gh.404delivr.workers.dev/https://github.com/QiuSimons/openwrt-mos/raw/master/dat/$1" --no-check-certificate -O "$TMPDIR/$1"
   fi
 }
 
@@ -37,6 +37,8 @@ L_exist() {
 		uci get shadowsocksr.@global[0].global_server &>/dev/null
 	elif [ "$1" == "pw" ]; then
 		uci get passwall.@global[0].enabled &>/dev/null
+	elif [ "$1" == "pw2" ]; then
+		uci get passwall2.@global[0].enabled &>/dev/null
 	elif [ "$1" == "vssr" ]; then
 		uci get vssr.@global[0].global_server &>/dev/null
 	fi

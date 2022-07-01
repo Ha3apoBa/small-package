@@ -12,7 +12,6 @@ opkg_init() {
 uci import opkg < /dev/null
 uci -q batch << EOI
 set opkg.defaults='opkg'
-set opkg.defaults.import='/etc/backup/installed_packages.txt'
 set opkg.defaults.save='auto'
 set opkg.defaults.restore='auto'
 set opkg.defaults.rollback='auto'
@@ -22,14 +21,14 @@ set opkg.defaults.proc='--force-overwrite --force-checksum --force-depends'
 set opkg.defaults.reinstall='--force-reinstall --force-overwrite --force-checksum --force-depends'
 set opkg.defaults.newconf='/etc'
 EOI
-echo "kmod busybox base-files luci-app-openclash " \
+echo "kmod busybox base-files " \
 | sed -e "s/\s/ ipkg\n/g" | opkg uci ignore
 }
 
 opkg_uci() {
 local OPKG_OPT="${1:-${OPKG_UCI}}"
 local OPKG_OPT="${OPKG_OPT:-auto}"
-if ! uci -q get opkg > /dev/null
+if ! uci -q get opkg.defaults > /dev/null
 then opkg init
 fi
 uci -q batch << EOI
@@ -56,6 +55,7 @@ local OPKG_OPT="${1:-${OPKG_UCI}}"
 local OPKG_WR="$(opkg export wr)"
 local OPKG_WI="$(opkg export wi)"
 local OPKG_UR="$(opkg export ur)"
+local OPKG_CM="$(opkg export cm)"
 local OPKG_UI="$(opkg export ui)"
 if uci -q get fstab.rwm > /dev/null \
 && grep -q -e "\s/rwm\s" /etc/mtab
@@ -66,7 +66,9 @@ sed -e "s/$/\tipkg/" "${OPKG_WI}"
 fi
 {
 sed -e "s/$/\trpkg/" "${OPKG_UR}"
+sed -e "s/$/\trpkg/" "${OPKG_CM}" | grep "^-" | sed "s/^-//"
 sed -e "s/$/\tipkg/" "${OPKG_UI}"
+sed -e "s/$/\tipkg/" "${OPKG_CM}" | grep "^[^-]"
 } | opkg uci "${OPKG_OPT}"
 rm -f "${OPKG_WR}" "${OPKG_WI}" "${OPKG_UR}" "${OPKG_UI}"
 }
@@ -77,6 +79,9 @@ local OPKG_CONF="${OPKG_OPT}"
 local OPKG_AI="$(opkg export ai)"
 local OPKG_PR="$(opkg export pr)"
 local OPKG_PI="$(opkg export pi)"
+if ! uci -q get opkg > /dev/null
+then opkg init
+fi
 grep -x -f "${OPKG_AI}" "${OPKG_PR}" \
 | opkg proc remove
 grep -v -x -f "${OPKG_AI}" "${OPKG_PI}" \
@@ -103,6 +108,9 @@ rm -f "${OPKG_UR}" "${OPKG_UI}" "${OPKG_PR}" "${OPKG_PI}"
 
 opkg_upgr() {
 local OPKG_OPT="${1:-${OPKG_UCI}}"
+if ! uci -q get opkg > /dev/null
+then opkg init
+fi
 case "${OPKG_OPT}" in
 (ai|oi) opkg_"${OPKG_CMD}"_type ;;
 esac | opkg proc upgrade
@@ -126,7 +134,7 @@ case "${OPKG_OPT}" in
 (ai|au) opkg_"${OPKG_CMD}"_cmd ;;
 (ri|wr|wi|or|oi) opkg_"${OPKG_CMD}"_type ;;
 (ur|ui) opkg_"${OPKG_CMD}"_run ;;
-(pr|pi|ig) opkg_"${OPKG_CMD}"_uci ;;
+(pr|pi|ig|cm) opkg_"${OPKG_CMD}"_uci ;;
 esac > "${OPKG_TEMP}"
 echo "${OPKG_TEMP}"
 }
@@ -173,6 +181,7 @@ case "${OPKG_OPT:1}" in
 (r) OPKG_TYPE="rpkg"; OPKG_CONF="auto" ;;
 (i) OPKG_TYPE="ipkg"; OPKG_CONF="auto" ;;
 (g) OPKG_TYPE="ipkg"; OPKG_CONF="ignore" ;;
+(m) OPKG_TYPE="ipkg"; OPKG_CONF="custom" ;;
 esac
 uci -q get opkg."${OPKG_CONF}"."${OPKG_TYPE}" \
 | sed -e "s/\s/\n/g"

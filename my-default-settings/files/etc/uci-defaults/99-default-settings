@@ -6,9 +6,8 @@
 
 version=`uci -q get base_config.@status[0].version`
 
-. /etc/openwrt_release
-test -n "${DISTRIB_ID}" || DISTRIB_ID=OpenWrt
-DISTRIB_ID=`echo -n $DISTRIB_ID | tr a-z A-Z`
+hostname=`uci -q get system.@system[0].hostname`
+test -n "${hostname}" || hostname="OpenWrt"
 
 if [ "$(uci -q get dhcp.@dnsmasq[0].port)" != "53" ]; then
 	uci -q set dhcp.@dnsmasq[0].port='53'
@@ -35,11 +34,6 @@ echo $(uci -q get uhttpd.main.index_page) | grep -q "cgi-bin/luci" ||
 
 sed -i "s/git-.*-\(.*\)/git-\1/g" /usr/lib/lua/luci/version.lua
 
-[[ "$(echo "$(/sbin/cpuinfo 2>/dev/null)" | grep -i "MHz")" ]] || sed -i "s/_('CPU Info'),cpuinfo.cpufreq,//" /www/luci-static/resources/view/status/include/10_system.js
-
-grep -q op.supes.top /etc/bypass/white.list ||
-		echo "op.dllkids.xyz" >> /etc/bypass/white.list
-
 processor=`cat /proc/cpuinfo | grep 'processor' | wc -l`
 test -n "$processor" || processor=3
 sed -i "/^threads =/c\threads = $processor" /etc/uwsgi/vassals/luci-webui.ini
@@ -52,7 +46,6 @@ test $version -lt 1 && {
 	uci commit dropbear
 	
 	uci -q get system.@system[0] >/dev/null 2>&1 && {
-		uci -q set system.@system[0].hostname="${DISTRIB_ID}"
 		uci -q set system.@system[0].zonename='Asia/Shanghai'
 		uci -q set system.@system[0].timezone='CST-8'
 		uci -q del system.ntp.server
@@ -68,65 +61,76 @@ test $version -lt 1 && {
 	
 	(echo "root"; sleep 1; echo "root") | /bin/busybox passwd root >/dev/null 2>&1 &
 	
+	. /etc/openwrt_release
+	[[ "$DISTRIB_TARGET" != "x86/64" && "$DISTRIB_TARGET" != "ipq807x/generic" ]] && {
+		uci set firewall.@defaults[0].flow_offloading='1'
+		uci set firewall.@defaults[0].flow_offloading_hw='1'
+		uci commit firewall
+	}
+
 	wifi_setup_radio(){
 	local radio=$1
+	htmode="$(uci get wireless.${radio}.htmode)"
+	local widx=0
+	while uci rename wireless.@wifi-iface[$widx]=default_radio$widx >/dev/null 2>&1; do widx=$((widx+1)); done
 	uci -q get wireless.${radio} >/dev/null 2>&1 && {
-		uci -q batch <<-EOT
-			set -q wireless.${radio}.disabled='0'
-		EOT
+			uci -q del wireless.${radio}.disabled
+			uci -q set wireless.${radio}.country='US'
 		
-		if [ "$(uci -q get wireless.${radio}.hwmode)" = "11a" ]; then
-			uci -q set wireless.${radio}.htmode='VHT80'
-		else
-			uci -q set wireless.${radio}.htmode='VHT40'
-		fi
-
-		obj=`uci -q add wireless wifi-iface`
-		test -n "$obj" && {
-			uci -q set wireless.$obj.device="${radio}"
-			uci -q set wireless.$obj.network='lan'
-			uci -q set wireless.$obj.mode='ap'
-			if [ "$(uci -q get wireless.${radio}.hwmode)" == "11a" ]; then
-				uci -q set wireless.$obj.ssid="${SSID}_5G"
+		if [ "$(uci -q get wireless.${radio}.band)" = "5g" ]; then
+			uci -q set wireless.default_${radio}.ssid="${SSID}_5G"
+			if [[ "${htmode}" == HE* ]]; then   # AX
+				uci -q set wireless.${radio}.htmode="HE160"
+				uci -q set wireless.${radio}.channel='44'
 			else
-				uci -q set wireless.$obj.ssid="${SSID}_2.4G"
+				uci -q set wireless.${radio}.htmode="VHT80"   #AC
+				uci -q set wireless.${radio}.channel="157"
 			fi
-			if [ "${SSID_PASSWD}" ]; then
-				uci -q set wireless.$obj.encryption='psk2'
-				uci -q set wireless.$obj.key="${SSID_PASSWD}"
-			else
-				uci -q set wireless.$obj.encryption='none'
-			fi
+			[[ "$(board_name)" == *cr660x ]] && {
+				uci -q set wireless.${radio}.htmode="HE80"
+				uci -q set wireless.${radio}.channel='157'
 			}
+		else
+			uci -q set wireless.${radio}.htmode="HT40"   #N
+			uci -q set wireless.${radio}.noscan='1'
+			uci -q set wireless.${radio}.vendor_vht='1'
+			uci -q set wireless.default_${radio}.ssid="${SSID}_2.4G"
+			uci -q set wireless.${radio}.channel='auto'
+		fi
+			uci -q set wireless.default_${radio}.device="${radio}"
+			if [ "${SSID_PASSWD}" ]; then
+				uci -q set wireless.default_${radio}.encryption='psk2'
+				uci -q set wireless.default_${radio}.key="${SSID_PASSWD}"
+			else
+				uci -q set wireless.default_${radio}.encryption='none'
+			fi
 		}
 	}
 
 	[ -f /etc/config/wireless ] && {
-		SSID=${DISTRIB_ID}
+		SSID=${hostname}
 		SSID_PASSWD=""
-		while uci delete wireless.@wifi-iface[0] >/dev/null 2>&1; do :; done
-		for radio in radio0 radio1 radio2 radio3 wifi0 wifi1 wifi2 wifi3; do
+		[ "$(uci -q get wireless.radio1.band)" == "5g" ] && uci -q set wireless.radio0.band="2g"
+		for radio in radio0 radio1 radio2 radio3; do
 			wifi_setup_radio ${radio}
 		done
 		uci commit wireless
 	}
-	
+
 	uci -q set upnpd.config.enabled='1'
 	uci commit upnpd
 	
 	grep -q log-facility /etc/dnsmasq.conf ||
 		echo "log-facility=/dev/null" >> /etc/dnsmasq.conf
 
-	grep -q /etc/dnsmasq.d /etc/dnsmasq.conf ||
-		echo "conf-dir=/etc/dnsmasq.d" >> /etc/dnsmasq.conf
-
+	[ -f /sys/module/xt_FULLCONENAT/refcnt ] && {
 	uci -q set firewall.@defaults[0].fullcone='1'
 	uci commit firewall
+	}
 
 	uci -q set fstab.@global[0].anon_mount=1
 	uci commit fstab
  
-	uci -q set network.lan.ipaddr="192.168.1.252"
 	uci -q set network.@globals[0].packet_steering=1
 	uci commit network
   
@@ -196,22 +200,22 @@ test $version -lt 1 && {
 	uci -q set system.@system[0].zram_comp_algo='zstd'
 	uci -q set system.@system[0].zram_size_mb="$(expr $memtotal / 1024 / 3)"
 	uci commit system
+	
+	# sysctl overwrite
+	SYSCTL_LOCAL=/etc/sysctl.d/50-local.conf
+	mkdir -p /etc/sysctl.d
+	echo -n >$SYSCTL_LOCAL
+	echo net.nf_conntrack_max=$nf_conntrack_max >>$SYSCTL_LOCAL
+	echo net.ipv4.ip_early_demux=0 >>$SYSCTL_LOCAL
+	echo net.bridge.bridge-nf-call-iptables=0 >>$SYSCTL_LOCAL
+	echo net.ipv4.fib_multipath_hash_policy=1 >>$SYSCTL_LOCAL
+	echo net.ipv4.tcp_congestion_control=cubic >>$SYSCTL_LOCAL
+	echo net.netfilter.nf_conntrack_helper=1 >>$SYSCTL_LOCAL
+	echo kernel.msgmax = 65536 >>$SYSCTL_LOCAL
+	echo kernel.msgmnb = 65536 >>$SYSCTL_LOCAL
+	echo vm.swappiness=0 >>$SYSCTL_LOCAL
 	version=1
 }
-
-# sysctl overwrite
-SYSCTL_LOCAL=/etc/sysctl.d/50-local.conf
-mkdir -p /etc/sysctl.d
-echo -n >$SYSCTL_LOCAL
-echo net.nf_conntrack_max=$nf_conntrack_max >>$SYSCTL_LOCAL
-echo net.ipv4.ip_early_demux=0 >>$SYSCTL_LOCAL
-echo net.bridge.bridge-nf-call-iptables=0 >>$SYSCTL_LOCAL
-echo net.ipv4.fib_multipath_hash_policy=1 >>$SYSCTL_LOCAL
-echo net.ipv4.tcp_congestion_control=cubic >>$SYSCTL_LOCAL
-echo net.netfilter.nf_conntrack_helper=1 >>$SYSCTL_LOCAL
-echo kernel.msgmax = 65536 >>$SYSCTL_LOCAL
-echo kernel.msgmnb = 65536 >>$SYSCTL_LOCAL
-echo vm.swappiness=0 >>$SYSCTL_LOCAL
 
 cp -pR /www/cgi-bin/* /www/
 rm -rf /tmp/luci-*

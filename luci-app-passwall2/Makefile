@@ -5,8 +5,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-passwall2
-PKG_VERSION:=1.1
-PKG_RELEASE:=2
+PKG_VERSION:=1.3
+PKG_RELEASE:=21
 
 PKG_CONFIG_DEPENDS:= \
 	CONFIG_PACKAGE_$(PKG_NAME)_Transparent_Proxy \
@@ -21,14 +21,14 @@ PKG_CONFIG_DEPENDS:= \
 	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_ShadowsocksR_Libev_Client \
 	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_ShadowsocksR_Libev_Server \
 	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_Simple_Obfs \
-	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Plugin \
-	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_Xray
+	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_V2ray \
+	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Plugin
 
 LUCI_TITLE:=LuCI support for PassWall 2
 LUCI_PKGARCH:=all
 LUCI_DEPENDS:=+coreutils +coreutils-base64 +coreutils-nohup +curl \
 	+ip-full +libuci-lua +lua +luci-compat +luci-lib-jsonc +resolveip +tcping \
-	+v2ray-core +v2ray-geoip +v2ray-geosite \
+	+xray-core +v2ray-geoip +v2ray-geosite \
 	+unzip \
 	+PACKAGE_$(PKG_NAME)_INCLUDE_Brook:brook \
 	+PACKAGE_$(PKG_NAME)_INCLUDE_Hysteria:hysteria \
@@ -38,12 +38,13 @@ LUCI_DEPENDS:=+coreutils +coreutils-base64 +coreutils-nohup +curl \
 	+PACKAGE_$(PKG_NAME)_INCLUDE_Shadowsocks_Libev_Client:shadowsocks-libev-ss-redir \
 	+PACKAGE_$(PKG_NAME)_INCLUDE_Shadowsocks_Libev_Server:shadowsocks-libev-ss-server \
 	+PACKAGE_$(PKG_NAME)_INCLUDE_Shadowsocks_Rust_Client:shadowsocks-rust-sslocal \
+	+PACKAGE_$(PKG_NAME)_INCLUDE_Shadowsocks_Rust_Server:shadowsocks-rust-ssserver \
 	+PACKAGE_$(PKG_NAME)_INCLUDE_ShadowsocksR_Libev_Client:shadowsocksr-libev-ssr-local \
 	+PACKAGE_$(PKG_NAME)_INCLUDE_ShadowsocksR_Libev_Client:shadowsocksr-libev-ssr-redir \
 	+PACKAGE_$(PKG_NAME)_INCLUDE_ShadowsocksR_Libev_Server:shadowsocksr-libev-ssr-server \
 	+PACKAGE_$(PKG_NAME)_INCLUDE_Simple_Obfs:simple-obfs \
-	+PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Plugin:v2ray-plugin \
-	+PACKAGE_$(PKG_NAME)_INCLUDE_Xray:xray-core
+	+PACKAGE_$(PKG_NAME)_INCLUDE_V2ray:v2ray-core \
+	+PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Plugin:v2ray-plugin
 
 define Package/$(PKG_NAME)/config
 menu "Configuration"
@@ -57,6 +58,7 @@ config PACKAGE_$(PKG_NAME)_Transparent_Proxy
 	select PACKAGE_iptables-mod-iprange
 	select PACKAGE_iptables-mod-socket
 	select PACKAGE_iptables-mod-tproxy
+	select PACKAGE_iptables-mod-conntrack-extra
 	select PACKAGE_kmod-ipt-nat
 	default y
 
@@ -84,12 +86,17 @@ config PACKAGE_$(PKG_NAME)_INCLUDE_Shadowsocks_Libev_Client
 
 config PACKAGE_$(PKG_NAME)_INCLUDE_Shadowsocks_Libev_Server
 	bool "Include Shadowsocks Libev Server"
-	default y if aarch64||arm||i386||x86_64
+	default n
 
 config PACKAGE_$(PKG_NAME)_INCLUDE_Shadowsocks_Rust_Client
 	bool "Include Shadowsocks Rust Client"
 	depends on aarch64||arm||i386||mips||mipsel||x86_64
 	default y if aarch64
+
+config PACKAGE_$(PKG_NAME)_INCLUDE_Shadowsocks_Rust_Server
+	bool "Include Shadowsocks Rust Server"
+	depends on aarch64||arm||i386||mips||mipsel||x86_64
+	default n
 
 config PACKAGE_$(PKG_NAME)_INCLUDE_ShadowsocksR_Libev_Client
 	bool "Include ShadowsocksR Libev Client"
@@ -103,12 +110,12 @@ config PACKAGE_$(PKG_NAME)_INCLUDE_Simple_Obfs
 	bool "Include Simple-Obfs (Shadowsocks Plugin)"
 	default y
 
+config PACKAGE_$(PKG_NAME)_INCLUDE_V2ray
+	bool "Include V2ray"
+	default n
+
 config PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Plugin
 	bool "Include V2ray-Plugin (Shadowsocks Plugin)"
-	default y if aarch64||arm||i386||x86_64
-
-config PACKAGE_$(PKG_NAME)_INCLUDE_Xray
-	bool "Include Xray"
 	default y if aarch64||arm||i386||x86_64
 
 endmenu

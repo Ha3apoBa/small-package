@@ -91,15 +91,15 @@ function to_check()
 		model = "mediatek_mt7622/xiaomi_redmi-router_ax6s"
 		check_update()
 		download_url = "https://op.supes.top/firmware/" ..model.. "/" ..remote_version.. "-openwrt-mediatek-mt7622-xiaomi_redmi-router-ax6s-squashfs-sysupgrade.bin"
-    elseif board_name:match("redmi_ax6") then
+    elseif board_name:match("redmi,ax6") then
 		model = "ipq807x_generic/redmi_ax6"
 		check_update()
 		download_url = "https://op.supes.top/firmware/" ..model.. "/" ..remote_version.. "-openwrt-ipq807x-generic-redmi_ax6-squashfs-nand-sysupgrade.bin"
-    elseif board_name:match("xiaomi_ax9000") then
+    elseif board_name:match("xiaomi,ax9000") then
 		model = "ipq807x_generic/xiaomi_ax9000"
 		check_update()
 		download_url = "https://op.supes.top/firmware/" ..model.. "/" ..remote_version.. "-openwrt-ipq807x-generic-xiaomi_ax9000-squashfs-nand-sysupgrade.bin"
-    elseif board_name:match("xiaomi_ax3600") then
+    elseif board_name:match("xiaomi,ax3600") then
 		model = "ipq807x_generic/xiaomi_ax3600"
 		check_update()
 		download_url = "https://op.supes.top/firmware/" ..model.. "/" ..remote_version.. "-openwrt-ipq807x-generic-xiaomi_ax3600-squashfs-nand-sysupgrade.bin"
@@ -111,6 +111,14 @@ function to_check()
 		model = "ramips_mt7621/d-team_newifi-d2"
 		check_update()
 		download_url = "https://op.supes.top/firmware/" ..model.. "/" ..remote_version.. "-openwrt-ramips-mt7621-d-team_newifi-d2-squashfs-sysupgrade.bin"
+    elseif board_name:match("newifi%-d1") then
+		model = "ramips_mt7621/lenovo_newifi-d1"
+		check_update()
+		download_url = "https://op.supes.top/firmware/" ..model.. "/" ..remote_version.. "-openwrt-ramips-mt7621-lenovo_newifi-d1-squashfs-sysupgrade.bin"
+    elseif board_name:match("re%-sp%-01b") then
+		model = "ramips_mt7621/jdcloud_re-sp-01b"
+		check_update()
+		download_url = "https://op.supes.top/firmware/" ..model.. "/" ..remote_version.. "-openwrt-ramips-mt7621-jdcloud_re-sp-01b-squashfs-sysupgrade.bin"
     elseif board_name:match("mi%-router%-cr660x") then
 		model = "ramips_mt7621/xiaomi_mi-router-cr660x"
 		check_update()
@@ -223,6 +231,14 @@ function to_check()
 		model = "ramips_mt7621/xiaomi_mi-router-3g-v2"
 		check_update()
 		download_url = "https://op.supes.top/firmware/" ..model.. "/" ..remote_version.. "-openwrt-ramips-mt7621-xiaomi_mi-router-3g-v2-squashfs-sysupgrade.bin"
+    elseif board_name:match("jcg,y2") then
+		model = "ramips_mt7621/jcg_y2"
+		check_update()
+		download_url = "https://op.supes.top/firmware/" ..model.. "/" ..remote_version.. "-openwrt-ramips-mt7621-jcg_y2-squashfs-sysupgrade.bin"
+    elseif board_name:match("jcg,q20") then
+		model = "ramips_mt7621/jcg_q20"
+		check_update()
+		download_url = "https://op.supes.top/firmware/" ..model.. "/" ..remote_version.. "-openwrt-ramips-mt7621-jcg_q20-squashfs-sysupgrade.bin"
     elseif board_name:match("rt%-ac1200$") then
 		model = "ramips_mt76x8/asus_rt-ac1200"
 		check_update()
